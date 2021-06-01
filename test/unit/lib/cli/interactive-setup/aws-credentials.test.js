@@ -89,14 +89,8 @@ describe('test/unit/lib/cli/interactive-setup/aws-credentials.test.js', () => {
       '@serverless/dashboard-plugin/lib/clientUtils': {
         getPlatformClientWithAccessKey: async () => internalMockedSdk,
       },
-      '@serverless/utils/config': {
-        getLoggedInUser: () => {
-          return {
-            accessKeys: {
-              someorg: 'xxx',
-            },
-          };
-        },
+      './utils': {
+        isUserLoggedIn: () => true,
       },
     });
 
@@ -133,21 +127,9 @@ describe('test/unit/lib/cli/interactive-setup/aws-credentials.test.js', () => {
       '@serverless/dashboard-plugin/lib/clientUtils': {
         getPlatformClientWithAccessKey: async () => internalMockedSdk,
       },
-      '@serverless/utils/config': {
-        getLoggedInUser: () => {
-          return {
-            accessKeys: {
-              someorg: 'xxx',
-            },
-          };
-        },
-      },
-      '@serverless/dashboard-plugin/lib/resolveProviderCredentials': () => {
-        return {
-          accessKeyId: 'somekey',
-          secretAccessKey: 'somesecret',
-          sessionToken: 'somesessiontoken',
-        };
+      './utils': {
+        isUserLoggedIn: () => true,
+        doesServiceInstanceHaveLinkedProvider: () => true,
       },
     });
 
@@ -191,17 +173,9 @@ describe('test/unit/lib/cli/interactive-setup/aws-credentials.test.js', () => {
       '@serverless/dashboard-plugin/lib/clientUtils': {
         getPlatformClientWithAccessKey: async () => internalMockedSdk,
       },
-      '@serverless/utils/config': {
-        getLoggedInUser: () => {
-          return {
-            accessKeys: {
-              someorg: 'xxx',
-            },
-          };
-        },
-      },
-      '@serverless/dashboard-plugin/lib/resolveProviderCredentials': () => {
-        return null;
+      './utils': {
+        isUserLoggedIn: () => true,
+        doesServiceInstanceHaveLinkedProvider: () => false,
       },
     });
 
@@ -234,14 +208,8 @@ describe('test/unit/lib/cli/interactive-setup/aws-credentials.test.js', () => {
       '@serverless/dashboard-plugin/lib/clientUtils': {
         getPlatformClientWithAccessKey: async () => internalMockedSdk,
       },
-      '@serverless/utils/config': {
-        getLoggedInUser: () => {
-          return {
-            accessKeys: {
-              someorg: 'xxx',
-            },
-          };
-        },
+      './utils': {
+        isUserLoggedIn: () => true,
       },
     });
 
@@ -436,8 +404,8 @@ describe('test/unit/lib/cli/interactive-setup/aws-credentials.test.js', () => {
           getPlatformClientWithAccessKey: async () => internalMockedSdk,
         },
         '../../utils/openBrowser': mockedOpenBrowser,
-        '@serverless/utils/config': {
-          getLoggedInUser: () => ({}),
+        './utils': {
+          isUserLoggedIn: () => true,
         },
       });
 
@@ -446,20 +414,20 @@ describe('test/unit/lib/cli/interactive-setup/aws-credentials.test.js', () => {
       });
 
       let stdoutData = '';
+      const context = {
+        serviceDir: process.cwd(),
+        configuration: {
+          service: 'someservice',
+          provider: { name: 'aws' },
+          org: 'someorg',
+          app: 'someapp',
+        },
+        options: {},
+        configurationFilename: 'serverless.yml',
+      };
       await overrideStdoutWrite(
         (data) => (stdoutData += data),
-        async () =>
-          await mockedStep.run({
-            serviceDir: process.cwd(),
-            configuration: {
-              service: 'someservice',
-              provider: { name: 'aws' },
-              org: 'someorg',
-              app: 'someapp',
-            },
-            options: {},
-            configurationFilename: 'serverless.yml',
-          })
+        async () => await mockedStep.run(context)
       );
 
       expect(stdoutData).to.include('AWS Access Role provider was successfully created');
@@ -511,8 +479,8 @@ describe('test/unit/lib/cli/interactive-setup/aws-credentials.test.js', () => {
           getPlatformClientWithAccessKey: async () => internalMockedSdk,
         },
         '../../utils/openBrowser': mockedOpenBrowser,
-        '@serverless/utils/config': {
-          getLoggedInUser: () => ({}),
+        './utils': {
+          isUserLoggedIn: () => true,
         },
       });
 
@@ -520,21 +488,21 @@ describe('test/unit/lib/cli/interactive-setup/aws-credentials.test.js', () => {
         list: { credentialsSetupChoice: '_create_provider_' },
       });
 
+      const context = {
+        serviceDir: process.cwd(),
+        configuration: {
+          service: 'someservice',
+          provider: { name: 'aws' },
+          org: 'someorg',
+          app: 'someapp',
+        },
+        options: {},
+        configurationFilename: 'serverless.yml',
+      };
       let stdoutData = '';
       await overrideStdoutWrite(
         (data) => (stdoutData += data),
-        async () =>
-          await mockedStep.run({
-            serviceDir: process.cwd(),
-            configuration: {
-              service: 'someservice',
-              provider: { name: 'aws' },
-              org: 'someorg',
-              app: 'someapp',
-            },
-            options: {},
-            configurationFilename: 'serverless.yml',
-          })
+        async () => await mockedStep.run(context)
       );
 
       expect(stdoutData).to.include('AWS Access Role provider was successfully created');
@@ -629,21 +597,21 @@ describe('test/unit/lib/cli/interactive-setup/aws-credentials.test.js', () => {
         list: { credentialsSetupChoice: providerUid },
       });
 
+      const context = {
+        serviceDir: process.cwd(),
+        configuration: {
+          service: 'someservice',
+          provider: { name: 'aws' },
+          org: 'someorg',
+          app: 'someapp',
+        },
+        options: {},
+        configurationFilename: 'serverless.yml',
+      };
       let stdoutData = '';
       await overrideStdoutWrite(
         (data) => (stdoutData += data),
-        async () =>
-          await mockedStep.run({
-            serviceDir: process.cwd(),
-            configuration: {
-              service: 'someservice',
-              provider: { name: 'aws' },
-              org: 'someorg',
-              app: 'someapp',
-            },
-            options: {},
-            configurationFilename: 'serverless.yml',
-          })
+        async () => await mockedStep.run(context)
       );
 
       expect(mockedCreateProviderLink).to.have.been.calledWith(
@@ -733,8 +701,8 @@ describe('test/unit/lib/cli/interactive-setup/aws-credentials.test.js', () => {
         '@serverless/dashboard-plugin/lib/clientUtils': {
           getPlatformClientWithAccessKey: async () => internalMockedSdk,
         },
-        '@serverless/utils/config': {
-          getLoggedInUser: () => ({}),
+        './utils': {
+          isUserLoggedIn: () => true,
         },
       });
 
@@ -745,6 +713,7 @@ describe('test/unit/lib/cli/interactive-setup/aws-credentials.test.js', () => {
           await mockedStep.run({
             serviceDir: process.cwd(),
             configuration: { provider: { name: 'aws' }, org: 'someorg' },
+            options: {},
             configurationFilename: 'serverless.yml',
           })
       );
