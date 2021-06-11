@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const overrideEnv = require('process-utils/override-env');
 const overrideCwd = require('process-utils/override-cwd');
+const sinon = require('sinon');
 
 const resolveLocalServerless = require('../../../../../lib/cli/resolve-local-serverless-path');
 const commandsSchema = require('../../../../../lib/cli/commands-schema');
@@ -517,5 +518,70 @@ describe('test/unit/lib/utils/telemetry/generatePayload.test.js', () => {
     expect(new Set(payload.commandOptionNames)).to.deep.equal(
       new Set(['region', 'format', 'path'])
     );
+  });
+
+  describe('with frozen time', () => {
+    let clock;
+    const fakeTime = new Date(Date.UTC(2021, 6, 14)).getTime();
+
+    beforeEach(() => {
+      clock = sinon.useFakeTimers(fakeTime);
+    });
+
+    afterEach(() => {
+      clock.restore();
+      sinon.restore();
+    });
+
+    it('Should correctly resolve `commandUsage` property', async () => {
+      const { serverless } = await runServerless({
+        fixture: 'httpApi',
+        command: 'print',
+      });
+      const payload = await generatePayload({
+        command: 'print',
+        options: {},
+        commandSchema: commandsSchema.get('print'),
+        serviceDir: serverless.serviceDir,
+        configuration: serverless.configurationInput,
+        commandUsage: [
+          {
+            name: 'firstStep',
+          },
+          {
+            history: [
+              {
+                key: 'firstQuestion',
+                value: 'answer',
+                timestamp: 1626220800000,
+              },
+              {
+                key: 'otherQuestion',
+                value: 'otherAnswer',
+                timestamp: 1626220800000,
+              },
+            ],
+          },
+        ],
+      });
+
+      expect(payload.commandUsage).to.deep.equal([
+        {
+          name: 'firstStep',
+          history: [
+            {
+              key: 'firstQuestion',
+              value: 'answer',
+              timestamp: 1626220800000,
+            },
+            {
+              key: 'otherQuestion',
+              value: 'otherAnswer',
+              timestamp: 1626220800000,
+            },
+          ],
+        },
+      ]);
+    });
   });
 });
