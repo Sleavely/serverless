@@ -6,7 +6,6 @@ const fs = require('fs');
 const os = require('os');
 const overrideEnv = require('process-utils/override-env');
 const overrideCwd = require('process-utils/override-cwd');
-const sinon = require('sinon');
 
 const resolveLocalServerless = require('../../../../../lib/cli/resolve-local-serverless-path');
 const commandsSchema = require('../../../../../lib/cli/commands-schema');
@@ -144,6 +143,7 @@ describe('test/unit/lib/utils/telemetry/generatePayload.test.js', () => {
       npmDependencies: ['fooDep', 'barDep', 'fooOpt', 'someDev', 'otherDev'],
       triggeredDeprecations: [],
       installationType: 'global:other',
+      hasLocalCredentials: false,
       versions,
     });
   });
@@ -198,6 +198,7 @@ describe('test/unit/lib/utils/telemetry/generatePayload.test.js', () => {
       isTabAutocompletionInstalled: false,
       npmDependencies: [],
       triggeredDeprecations: [],
+      hasLocalCredentials: false,
       installationType: 'global:other',
       versions,
     });
@@ -257,6 +258,7 @@ describe('test/unit/lib/utils/telemetry/generatePayload.test.js', () => {
       npmDependencies: [],
       triggeredDeprecations: [],
       installationType: 'local:fallback',
+      hasLocalCredentials: false,
       versions: {
         'serverless': '2.0.0-local',
         '@serverless/dashboard-plugin': '4.0.0-local',
@@ -356,6 +358,7 @@ describe('test/unit/lib/utils/telemetry/generatePayload.test.js', () => {
       triggeredDeprecations: [],
       installationType: 'global:other',
       npmDependencies: [],
+      hasLocalCredentials: false,
       versions,
     });
   });
@@ -520,52 +523,64 @@ describe('test/unit/lib/utils/telemetry/generatePayload.test.js', () => {
     );
   });
 
-  describe('with frozen time', () => {
-    let clock;
-    const fakeTime = new Date(Date.UTC(2021, 6, 14)).getTime();
-
-    beforeEach(() => {
-      clock = sinon.useFakeTimers(fakeTime);
+  it('Should correctly resolve `hasLocalCredentials` property for AWS provider', async () => {
+    const { serverless } = await runServerless({
+      fixture: 'httpApi',
+      command: 'print',
     });
 
-    afterEach(() => {
-      clock.restore();
-      sinon.restore();
+    let payload;
+    await overrideEnv(
+      { variables: { AWS_ACCESS_KEY_ID: 'someaccesskey', AWS_SECRET_ACCESS_KEY: 'secretkey' } },
+      async () => {
+        payload = await generatePayload({
+          command: 'print',
+          options: {},
+          commandSchema: commandsSchema.get('print'),
+          serviceDir: serverless.serviceDir,
+          configuration: serverless.configurationInput,
+        });
+      }
+    );
+
+    expect(payload.hasLocalCredentials).to.equal(true);
+  });
+
+  it('Should correctly resolve `hasLocalCredentials` property for non-AWS provider', async () => {
+    const { serverless } = await runServerless({
+      fixture: 'customProvider',
+      command: 'print',
     });
 
-    it('Should correctly resolve `commandUsage` property', async () => {
-      const { serverless } = await runServerless({
-        fixture: 'httpApi',
-        command: 'print',
-      });
-      const payload = await generatePayload({
-        command: 'print',
-        options: {},
-        commandSchema: commandsSchema.get('print'),
-        serviceDir: serverless.serviceDir,
-        configuration: serverless.configurationInput,
-        commandUsage: [
-          {
-            name: 'firstStep',
-          },
-          {
-            history: [
-              {
-                key: 'firstQuestion',
-                value: 'answer',
-                timestamp: 1626220800000,
-              },
-              {
-                key: 'otherQuestion',
-                value: 'otherAnswer',
-                timestamp: 1626220800000,
-              },
-            ],
-          },
-        ],
-      });
+    let payload;
+    await overrideEnv(
+      { variables: { AWS_ACCESS_KEY_ID: 'someaccesskey', AWS_SECRET_ACCESS_KEY: 'secretkey' } },
+      async () => {
+        payload = await generatePayload({
+          command: 'print',
+          options: {},
+          commandSchema: commandsSchema.get('print'),
+          serviceDir: serverless.serviceDir,
+          configuration: serverless.configurationInput,
+        });
+      }
+    );
 
-      expect(payload.commandUsage).to.deep.equal([
+    expect(payload.hasLocalCredentials).to.equal(false);
+  });
+
+  it('Should correctly resolve `commandUsage` property', async () => {
+    const { serverless } = await runServerless({
+      fixture: 'httpApi',
+      command: 'print',
+    });
+    const payload = await generatePayload({
+      command: 'print',
+      options: {},
+      commandSchema: commandsSchema.get('print'),
+      serviceDir: serverless.serviceDir,
+      configuration: serverless.configurationInput,
+      commandUsage: [
         {
           name: 'firstStep',
           history: [
@@ -581,7 +596,25 @@ describe('test/unit/lib/utils/telemetry/generatePayload.test.js', () => {
             },
           ],
         },
-      ]);
+      ],
     });
+
+    expect(payload.commandUsage).to.deep.equal([
+      {
+        name: 'firstStep',
+        history: [
+          {
+            key: 'firstQuestion',
+            value: 'answer',
+            timestamp: 1626220800000,
+          },
+          {
+            key: 'otherQuestion',
+            value: 'otherAnswer',
+            timestamp: 1626220800000,
+          },
+        ],
+      },
+    ]);
   });
 });
